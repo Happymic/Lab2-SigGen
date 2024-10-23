@@ -1,5 +1,6 @@
 import math
 import string
+print("Generating sine rom")
 f = open("sinerom.mem","w")
 for i in range(256):
     v = int(math.cos(2*3.1416*i/256)*127+127)
@@ -10,3 +11,4 @@ for i in range(256):
     f.write(s.format(hex=v))
 
 f.close()
+print("Done")
