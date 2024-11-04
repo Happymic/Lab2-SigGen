@@ -1,36 +1,34 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
-#include "Vsigdelay.h"
 #include "vbuddy.cpp"
+#include "Vdual_sinegen.h"
 
 #define MAX_SIM_CYC 1000000
-#define RAM_SZ 512
 
 int main(int argc, char **argv, char **env) {
     int simcyc;
     int tick;
+    int phase_adjust = 0;
     
     Verilated::commandArgs(argc, argv);
-    Vsigdelay* top = new Vsigdelay;
+    Vdual_sinegen* top = new Vdual_sinegen;
     
     // Init trace dump
     Verilated::traceEverOn(true);
     VerilatedVcdC* tfp = new VerilatedVcdC;
     top->trace(tfp, 99);
-    tfp->open("sigdelay.vcd");
+    tfp->open("dual_sinegen.vcd");
     
     // Init Vbuddy
     if (vbdOpen()!=1) return(-1);
-    vbdHeader("Audio Delay");
-    
-    // Initialize microphone input
-    vbdInitMicIn(RAM_SZ);
+    vbdHeader("Dual Sine");
     
     // Initialize simulation inputs
     top->clk = 1;
     top->rst = 0;
     top->en = 1;
-    top->delay = 0;
+    top->incr = 1;    // Fixed frequency for now
+    top->phase = 0;   // Initial phase difference
     
     // Run simulation
     for (simcyc=0; simcyc<MAX_SIM_CYC; simcyc++) {
@@ -41,15 +39,13 @@ int main(int argc, char **argv, char **env) {
             top->eval();
         }
         
-        // Get next audio sample from microphone
-        top->mic_in = vbdMicValue();
+        // Read phase control from Vbuddy
+        phase_adjust = vbdValue();
+        top->phase = phase_adjust;
         
-        // Read delay amount from rotary encoder
-        top->delay = vbdValue();
-        
-        // Plot both original and delayed signals
-        vbdPlot(int(top->original), 0, 255);   // Original signal in one color
-        vbdPlot(int(top->delayed), 0, 255);    // Delayed signal in another color
+        // Plot both waveforms
+        vbdPlot(int(top->dout1), 0, 255);  // First sine wave
+        vbdPlot(int(top->dout2), 0, 255);  // Second sine wave (phase shifted)
         
         vbdCycle(simcyc);
         
